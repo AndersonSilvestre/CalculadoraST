@@ -203,6 +203,5 @@ class Interface(tk.Frame):
         button1.grid(row=4, column=1, padx=10, pady=10)
 
 
-# Driver Code
 app = MainApp()
 app.mainloop()
