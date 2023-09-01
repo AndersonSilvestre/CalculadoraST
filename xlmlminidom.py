@@ -11,7 +11,7 @@ class MainApp(tk.Tk):
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
 
-        self.geometry('790x250')
+        self.geometry('875x250')
         container = tk.Frame(self)
         container.pack(side="top", fill="both", expand=True)
 
@@ -42,19 +42,16 @@ class Interface(tk.Frame):
         # Variaveis da classe
 
         # Ncm Nacional são os com Aliq de Icms de 12%
-        self.ncm_nacional = {30021219: 1.8087, 30021229: 1.8087, 30021590: 1.8087, 34011190: 1.6356, 34029090: 1.5280,
-                             38221940: 1.8087, 84716052: 1.4917, 84719012: 1.4702, 85392110: 1.9532, 85423190: 1.5239,
-                             85444200: 1.5346, 90183119: 1.8087}
+        self.ncm_nacional = {30021590: 1.8087, 34011190: 1.6356, 34029090: 1.5280, 84716052: 1.4917, 84719012: 1.4702,
+                             85392110: 1.9532, 85423190: 1.5239, 85444200: 1.5346, 90183119: 1.8087}
+        self.ncm_med_nacional = {30021219: 1.8087, 30021229: 1.8087, 38221940: 1.8087}
         # Ncm Importado são os com Aliq de Icms de 4%
-        self.ncm_imp = {30021219: 1.9732, 30021229: 1.9732, 30021590: 1.9732, 34011190: 1.7843, 34029090: 1.6669,
-                        38221940: 1.9732, 84716052: 1.6273, 84719012: 1.6039, 85423190: 1.6624, 85444200: 1.6741,
-                        90183119: 1.9732}
+        self.ncm_imp = {30021590: 1.9732, 34011190: 1.7843, 34029090: 1.6669, 84716052: 1.6273, 84719012: 1.6039,
+                        85423190: 1.6624, 85444200: 1.6741, 90183119: 1.9732}
+        self.ncm_med_imp = {30021219: 1.9732, 30021229: 1.9732, 38221940: 1.9732}
 
         self.label = tk.Label(self, text='Calculadora ST')
         self.label.grid(column=2, row=1, columnspan=2)
-        # Configura a tela
-        # self.title('Calculo ST')
-        # self.geometry('300x150')
         self.frame = tk.Frame(self, width=600, height=50, borderwidth=2, relief="groove")
         self.frame.grid(column=0, row=3, columnspan=6, sticky='nsew')
         self.frame.grid_propagate(False)
@@ -89,10 +86,12 @@ class Interface(tk.Frame):
         valor_total = parsed_xml.getElementsByTagName('vProd')
         valor_icms = parsed_xml.getElementsByTagName('vICMS')
         aliq_icms = parsed_xml.getElementsByTagName('pICMS')
+        #aliq_pis = parsed_xml.getElementsByTagName('pPIS')
+        #aliq_cofins = parsed_xml.getElementsByTagName('pCOFINS')
         # valor_ipi = parsed_xml.getElementsByTagName('vIPI')
-
         # Cria a lista com os valores das tags
-        self.nat_op = [str(nop.firstChild.data) for nop in self.nat_op]
+        for nop in self.nat_op:
+            self.nat_op = str(nop.firstChild.data)
         for nf in self.numero_nota:
             self.numero_nota = nf.firstChild.data
         lista_num_item = [int(n.attributes['nItem'].value) for n in num_item]
@@ -102,44 +101,65 @@ class Interface(tk.Frame):
         lista_valor_total = [float(valor.firstChild.data) for valor in valor_total]
         lista_valor_ncm = [float(vrncm.firstChild.data) for vrncm in valor_icms]
         lista_aliq_ncm = [float(aliq.firstChild.data) for aliq in aliq_icms]
-        # lista_ipi = [float(ipi.firstChild.data) for ipi in valor_ipi]
-        w=0
+        lista_ipi, lista_pis, lista_cofins = [], [], []
+
+        w = 0
         for c in self.cnpj:
             if w < 1:
                 self.cnpj = c.firstChild.data
-                w+=1
+                w += 1
             else:
                 break
 
-        lista_ipi = []
         for i in num_item:
             if i.getElementsByTagName("vIPI"):
                 lista_ipi.append(float(i.getElementsByTagName('vIPI')[0].firstChild.data))
             else:
                 lista_ipi.append(0)
-
+        for i in num_item:
+            if i.getElementsByTagName("pPIS"):
+                lista_pis.append(float(i.getElementsByTagName("pPIS")[0].firstChild.data))
+            else:
+                lista_pis.append(0)
+        for i in num_item:
+            if i.getElementsByTagName('pCOFINS'):
+                lista_cofins.append(float(i.getElementsByTagName('pCOFINS')[0].firstChild.data))
+            else:
+                lista_cofins.append(0)
 
         # for para gerar uma unica lista contendo as informações dos produtos da nota.
         w = 0
         for i in lista_num_item:
             listainterna = [lista_num_item[w], lista_cod_prod[w], lista_nome_item[w], lista_ncm[w], lista_valor_total[w],
-                            lista_valor_ncm[w], lista_aliq_ncm[w], lista_ipi[w]]
+                            lista_valor_ncm[w], lista_aliq_ncm[w], lista_ipi[w], lista_pis[w], lista_cofins[w]]
             self.produtos.append(listainterna)
             w += 1
-
         self.calcula()
 
     def calcula(self):
         self.total = 0
         w = 0
         # Calculo do St dos produtos da nf
+
         for i in self.produtos:
             if i[6] == 12.00:
                 if i[3] in self.ncm_nacional.keys():
                     item = round((((i[4]+i[7])*self.ncm_nacional[i[3]])*0.18)-i[5], 2)
                     self.produtos[w].append('R$ ' + str(item))
+                    print(self.produtos)
                     self.total += item
                     w += 1
+                elif i[3] in self.ncm_med_nacional.keys():
+                    if i[8] == 0 and i[9] == 0 or i[8] == 2.1 and i[9] == 9.9:
+                        item = round((((i[4]+i[7])*self.ncm_med_nacional[i[3]])*0.18)-i[5], 2)
+                        self.produtos[w].append('R$ ' + str(item))
+                        print(self.produtos)
+                        self.total += item
+                        w += 1
+                    else:
+                        self.produtos[w].append('Sem ST')
+                        w += 1
+                        continue
                 else:
                     self.produtos[w].append('Sem ST')
                     w += 1
@@ -147,21 +167,33 @@ class Interface(tk.Frame):
                 if i[3] in self.ncm_imp.keys():
                     item = round((((i[4]+i[7])*self.ncm_imp[i[3]])*0.18)-i[5], 2)
                     self.produtos[w].append('R$ ' + str(item))
+                    print(self.produtos)
                     self.total += item
                     w += 1
+                elif i[3] in self.ncm_med_imp.keys():
+                    if i[8] == 0 and i[9] == 0 or i[8] == 2.1 and i[9] == 9.9:
+                        item = round((((i[4]+i[7])*self.ncm_med_imp[i[3]])*0.18)-i[5], 2)
+                        self.produtos[w].append('R$ ' + str(item))
+                        print(self.produtos)
+                        self.total += item
+                        w += 1
+                    else:
+                        self.produtos[w].append('Sem ST')
+                        w += 1
+                        continue
                 else:
                     self.produtos[w].append('Sem ST')
                     w += 1
-
-
+            else:
+                self.produtos[w].append('Sem ST')
+                w += 1
+        print(self.produtos)
         self.total = round(self.total, 2)
         # Apresentacao do resultado
         self.label = tk.Label(self, text='Valor da ST')
         self.label.grid(column=1, row=4)
-
         self.totallabel = tk.Label(self, text='R$ ' + str(self.total), borderwidth=2, relief="groove", width=10)
         self.totallabel.grid(column=2, row=4, columnspan=2, ipadx=10, ipady=5)
-
         self.nota = tk.Label(self, text='Numero NF')
         self.nota.grid(column=4, row=4)
         self.nop = tk.Label(self, text=self.nat_op)
@@ -172,7 +204,7 @@ class Interface(tk.Frame):
         self.cria_tabela()
 
     def cria_tabela(self):
-        colunas = ('linha', 'cod produto', 'nome', 'ncm', 'vlrUnitario', 'vlrNcm', 'aliq', 'ipi', 'st')
+        colunas = ('linha', 'cod produto', 'nome', 'ncm', 'vlrUnitario', 'vlrNcm', 'aliq', 'ipi', 'pis', 'cofins', 'st')
         self.tree = ttk.Treeview(self, height=5, columns=colunas, show='headings')
         self.tree.heading('linha', text='#0')
         self.tree.column('linha', width=30)
@@ -190,8 +222,12 @@ class Interface(tk.Frame):
         self.tree.column('aliq', width=40)
         self.tree.heading('ipi', text='IPI')
         self.tree.column('ipi', width=50)
+        self.tree.heading('pis', text='Pis')
+        self.tree.column('pis', width=40)
+        self.tree.heading('cofins', text='Cofins')
+        self.tree.column('cofins', width=45)
         self.tree.heading('st', text='St')
-        self.tree.column('st', width=80) 
+        self.tree.column('st', width=80)
         self.tree.grid(column=1, row=6, columnspan=6)
 
         scroll = ttk.Scrollbar(self, orient=tk.VERTICAL, command=self.tree.yview)
@@ -204,7 +240,6 @@ class Interface(tk.Frame):
         interno = self.produtos
         for itens in interno:
             self.tree.insert('', tk.END, values=itens)
-        # print(interno)
 
     def cria_txt(self):
         linha_arquivo = str(self.numero_nota) + ";" + str(self.total) + '\n'
